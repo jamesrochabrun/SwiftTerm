@@ -57,7 +57,8 @@ struct ViewLineInfo {
 }
 
 extension TerminalView {
-    typealias CellDimension = CGSize
+    // MARK: - AgentHub (exposed for annotation overlay alignment)
+    public typealias CellDimension = CGSize
     
     func resetCaches ()
     {
