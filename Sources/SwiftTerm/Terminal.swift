@@ -331,7 +331,8 @@ open class Terminal {
     private var synchronizedOutputBufferIsAlternate: Bool = false
     private var synchronizedOutputTimeoutItem: DispatchWorkItem?
 
-    var displayBuffer: Buffer {
+    // MARK: - AgentHub (exposed for scroll-aware buffer reading)
+    public var displayBuffer: Buffer {
         synchronizedOutputBuffer ?? buffer
     }
 

@@ -141,7 +141,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
 #endif
 
-    var cellDimension: CellDimension!
+    // MARK: - AgentHub (exposed for annotation overlay alignment)
+    public var cellDimension: CellDimension!
     var caretView: CaretView!
     public var terminal: Terminal!
     private var progressBarView: TerminalProgressBarView?
