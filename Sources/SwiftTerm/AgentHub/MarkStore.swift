@@ -144,12 +144,14 @@ public final class MarkStore {
   // MARK: - Navigation
 
   /// Finds the nearest mark in the given direction from a row.
+  /// When scrolling up, includes marks at the current display position
+  /// so you can return to a mark after scrolling past it.
   public func nearestMark(from row: Int, direction: MarkDirection) -> Mark? {
     switch direction {
     case .up:
-      return marks.last { $0.row < row }
+      return marks.last { $0.row <= row }
     case .down:
-      return marks.first { $0.row > row }
+      return marks.first { $0.row >= row }
     }
   }
 
