@@ -2006,6 +2006,13 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
             return
         }
+        if event.modifierFlags.contains(.command) && !didSelectionDrag {
+            // MARK: - AgentHub: fallback to plain URL detection in line text
+            if let url = detectPlainURL(at: event) {
+                terminalDelegate?.requestOpenLink(source: self, link: url.absoluteString, params: [:])
+                return
+            }
+        }
         if allowMouseReporting && terminal.mouseMode.sendButtonRelease() {
             sharedMouseEvent(with: event)
             return
