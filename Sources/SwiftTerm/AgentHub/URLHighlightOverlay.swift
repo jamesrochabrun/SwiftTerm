@@ -29,7 +29,7 @@ extension TerminalView {
 
     // Find URL at cursor position
     let pattern = try! NSRegularExpression(
-      pattern: #"https?://[^\s<>\"'\)\]}`\x1B]+"#,
+      pattern: #"https?://[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=\-%]+"#,
       options: [.caseInsensitive]
     )
     let nsLine = lineText as NSString
@@ -40,16 +40,21 @@ extension TerminalView {
       let end = start + match.range.length
       if col >= start && col < end {
         // Calculate the visual position of the URL
+        // Use the same math as calculateMouseHit but in reverse:
+        // calculateMouseHit: row = Int((frame.height - point.y) / cellH) + yDisp
+        // So: point.y = frame.height - (row - yDisp) * cellH
         let displayRow = row - terminal.displayBuffer.yDisp
         let cellW = cellDimension.width
         let cellH = cellDimension.height
 
         let x = CGFloat(start) * cellW
         let y = bounds.height - CGFloat(displayRow + 1) * cellH
-        let width = CGFloat(match.range.length) * cellW
+        let urlWidth = min(CGFloat(match.range.length) * cellW, bounds.width - x)
+
+        print("[URLHighlight] displayRow=\(displayRow) y=\(y) cellH=\(cellH) boundsH=\(bounds.height)")
 
         // Draw underline highlight
-        let underline = NSView(frame: CGRect(x: x, y: y - 1, width: width, height: 1.5))
+        let underline = NSView(frame: CGRect(x: x, y: y, width: urlWidth, height: 1.5))
         underline.wantsLayer = true
         underline.layer?.backgroundColor = NSColor(red: 0.4, green: 0.6, blue: 1.0, alpha: 0.8).cgColor
         underline.setAccessibilityIdentifier(Self.highlightViewID)

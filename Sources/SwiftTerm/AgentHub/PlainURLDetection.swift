@@ -12,8 +12,9 @@ import Foundation
 
 extension TerminalView {
 
+  // Match only RFC 3986 URL characters — stops at em-dashes, spaces, quotes, etc.
   private static let urlPattern = try! NSRegularExpression(
-    pattern: #"https?://[^\s<>\"'\)\]}`\x1B]+"#,
+    pattern: #"https?://[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=\-%]+"#,
     options: [.caseInsensitive]
   )
 
