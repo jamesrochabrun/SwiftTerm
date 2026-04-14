@@ -2009,8 +2009,12 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // MARK: - AgentHub: fallback to plain URL detection in line text
             if let url = detectPlainURL(at: event) {
-                print("[URLDetect] CMD+CLICK opening: \(url.absoluteString)")
                 terminalDelegate?.requestOpenLink(source: self, link: url.absoluteString, params: [:])
+                return
+            }
+            // MARK: - AgentHub: file path detection
+            if let file = detectFilePath(at: event) {
+                terminalDelegate?.requestOpenFile(source: self, path: file.path, lineNumber: file.lineNumber)
                 return
             }
         }
@@ -2431,6 +2435,9 @@ extension TerminalViewDelegate {
         }
     }
     
+    // MARK: - AgentHub
+    public func requestOpenFile (source: TerminalView, path: String, lineNumber: Int?) {}
+
     public func bell (source: TerminalView)
     {
         NSSound.beep()

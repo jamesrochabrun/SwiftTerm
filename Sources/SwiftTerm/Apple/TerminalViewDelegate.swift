@@ -58,6 +58,15 @@ public protocol TerminalViewDelegate: AnyObject {
      */
     func requestOpenLink (source: TerminalView, link: String, params: [String:String])
     
+    // MARK: - AgentHub
+    /**
+     * Invoked when the user Cmd+clicks on a detected file path in terminal output.
+     * - Parameter source: the terminal view
+     * - Parameter path: the file path that was detected
+     * - Parameter lineNumber: the line number if one was detected (e.g. from `file.swift:42`), or nil
+     */
+    func requestOpenFile (source: TerminalView, path: String, lineNumber: Int?)
+
     /**
      * This method will be invoked when the host beeps.
      */
