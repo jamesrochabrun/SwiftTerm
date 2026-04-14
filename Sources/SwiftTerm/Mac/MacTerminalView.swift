@@ -1231,11 +1231,18 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     var didSelectionDrag: Bool = false
     
     public override func mouseUp(with event: NSEvent) {
-        if event.modifierFlags.contains(.command){
+        if event.modifierFlags.contains(.command) && !didSelectionDrag {
+            // First try OSC 8 hyperlink payload
             if let payload = getPayload(for: event) as? String {
                 if let (url, params) = urlAndParamsFrom(payload: payload) {
                     terminalDelegate?.requestOpenLink(source: self, link: url, params: params)
+                    return
                 }
+            }
+            // MARK: - AgentHub: fallback to plain URL detection in line text
+            if let url = detectPlainURL(at: event) {
+                terminalDelegate?.requestOpenLink(source: self, link: url.absoluteString, params: [:])
+                return
             }
         }
         if allowMouseReporting && terminal.mouseMode.sendButtonRelease() {
