@@ -2009,6 +2009,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // MARK: - AgentHub: fallback to plain URL detection in line text
             if let url = detectPlainURL(at: event) {
+                print("[URLDetect] CMD+CLICK opening: \(url.absoluteString)")
                 terminalDelegate?.requestOpenLink(source: self, link: url.absoluteString, params: [:])
                 return
             }
