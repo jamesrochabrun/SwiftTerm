@@ -23,13 +23,32 @@ extension TerminalView {
     let hit = calculateMouseHit(with: event).grid
     let col = hit.col
     let row = hit.row
+    let bufferLineCount = terminal.displayBuffer.lines.count
+    let yDisp = terminal.displayBuffer.yDisp
+
+    print("[URLDetect] hit row=\(row) col=\(col) yDisp=\(yDisp) bufferLines=\(bufferLineCount) termRows=\(terminal.rows)")
+
+    // Dump nearby rows to find where URLs actually are
+    let scanStart = max(0, row - 5)
+    let scanEnd = min(bufferLineCount - 1, row + 5)
+    for r in scanStart...scanEnd {
+      if let line = terminal.getLine(row: r) {
+        let text = line.translateToString(trimRight: true)
+        if !text.isEmpty {
+          let marker = r == row ? " <-- CLICKED" : ""
+          if text.contains("http") {
+            print("[URLDetect]   row[\(r)]: '\(text)'\(marker) *** HAS URL ***")
+          }
+        }
+      }
+    }
 
     guard let bufferLine = terminal.getLine(row: row) else {
       print("[URLDetect] no buffer line at row=\(row)")
       return nil
     }
     let lineText = bufferLine.translateToString(trimRight: true)
-    print("[URLDetect] row=\(row) col=\(col) lineText='\(lineText)'")
+    print("[URLDetect] clicked line text='\(lineText)'")
     guard !lineText.isEmpty else { return nil }
 
     let nsLine = lineText as NSString
