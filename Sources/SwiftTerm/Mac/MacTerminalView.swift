@@ -624,21 +624,15 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
 
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
-            } else {
-                // MARK: - AgentHub: highlight plain URLs on Cmd hold
-                updateURLHighlight(at: event)
             }
         } else {
             turnOffUrlPreview ()
-            // MARK: - AgentHub
-            removeURLHighlight()
         }
         super.flagsChanged(with: event)
     }
     
     public override func mouseExited(with event: NSEvent) {
         turnOffUrlPreview()
-        removeURLHighlight()
         super.mouseExited(with: event)
     }
     
@@ -1237,7 +1231,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     var didSelectionDrag: Bool = false
     
     public override func mouseUp(with event: NSEvent) {
-        print("[URLDetect] mouseUp cmd=\(event.modifierFlags.contains(.command)) didSelectionDrag=\(didSelectionDrag)")
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // First try OSC 8 hyperlink payload
             if let payload = getPayload(for: event) as? String {
@@ -1370,11 +1363,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if commandActive {
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
-                removeURLHighlight()
-            } else {
-                // MARK: - AgentHub: highlight plain URLs on Cmd+hover
-                removePreviewUrl()
-                updateURLHighlight(at: event)
             }
         }
         
