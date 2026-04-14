@@ -621,18 +621,24 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if event.modifierFlags.contains(.command){
             commandActive = true
             startTracking()
-            
+
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
+            } else {
+                // MARK: - AgentHub: highlight plain URLs on Cmd hold
+                updateURLHighlight(at: event)
             }
         } else {
             turnOffUrlPreview ()
+            // MARK: - AgentHub
+            removeURLHighlight()
         }
         super.flagsChanged(with: event)
     }
     
     public override func mouseExited(with event: NSEvent) {
         turnOffUrlPreview()
+        removeURLHighlight()
         super.mouseExited(with: event)
     }
     
@@ -1364,6 +1370,11 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if commandActive {
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
+                removeURLHighlight()
+            } else {
+                // MARK: - AgentHub: highlight plain URLs on Cmd+hover
+                removePreviewUrl()
+                updateURLHighlight(at: event)
             }
         }
         
