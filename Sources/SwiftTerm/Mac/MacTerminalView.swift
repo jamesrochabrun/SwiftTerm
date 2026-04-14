@@ -2006,6 +2006,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
             return
         }
+        print("[URLDetect] mouseUp cmd=\(event.modifierFlags.contains(.command)) didSelectionDrag=\(didSelectionDrag)")
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // MARK: - AgentHub: fallback to plain URL detection in line text
             if let url = detectPlainURL(at: event) {

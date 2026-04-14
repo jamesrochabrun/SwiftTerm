@@ -24,8 +24,12 @@ extension TerminalView {
     let col = hit.col
     let row = hit.row
 
-    guard let bufferLine = terminal.getLine(row: row) else { return nil }
+    guard let bufferLine = terminal.getLine(row: row) else {
+      print("[URLDetect] no buffer line at row=\(row)")
+      return nil
+    }
     let lineText = bufferLine.translateToString(trimRight: true)
+    print("[URLDetect] row=\(row) col=\(col) lineText='\(lineText)'")
     guard !lineText.isEmpty else { return nil }
 
     let nsLine = lineText as NSString
@@ -33,16 +37,19 @@ extension TerminalView {
       in: lineText,
       range: NSRange(location: 0, length: nsLine.length)
     )
+    print("[URLDetect] found \(matches.count) URL matches")
 
     for match in matches {
       let start = match.range.location
       let end = start + match.range.length
+      let matchText = nsLine.substring(with: match.range)
+      print("[URLDetect] match: '\(matchText)' range=\(start)..<\(end) col=\(col) hit=\(col >= start && col < end)")
       if col >= start && col < end {
-        var urlString = nsLine.substring(with: match.range)
-        // Strip trailing punctuation that's likely not part of the URL
+        var urlString = matchText
         while let last = urlString.last, ".,;:!?)".contains(last) {
           urlString.removeLast()
         }
+        print("[URLDetect] opening: \(urlString)")
         return URL(string: urlString)
       }
     }
