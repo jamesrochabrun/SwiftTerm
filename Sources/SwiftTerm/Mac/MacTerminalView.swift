@@ -844,6 +844,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             }
         } else {
             turnOffUrlPreview ()
+            // MARK: - AgentHub
+            removeURLHighlight()
         }
         if terminal.keyboardEnhancementFlags.contains(.reportAllKeys),
            !kittyIsComposing,
@@ -2167,6 +2169,11 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if commandActive {
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
+                removeURLHighlight()
+            } else {
+                // MARK: - AgentHub: highlight plain URLs on Cmd+hover
+                removePreviewUrl()
+                updateURLHighlight(at: event)
             }
             reportLink(at: hit.grid)
         }
