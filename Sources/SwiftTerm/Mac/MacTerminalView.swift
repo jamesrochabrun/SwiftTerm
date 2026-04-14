@@ -1231,6 +1231,7 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     var didSelectionDrag: Bool = false
     
     public override func mouseUp(with event: NSEvent) {
+        print("[URLDetect] mouseUp cmd=\(event.modifierFlags.contains(.command)) didSelectionDrag=\(didSelectionDrag)")
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // First try OSC 8 hyperlink payload
             if let payload = getPayload(for: event) as? String {
