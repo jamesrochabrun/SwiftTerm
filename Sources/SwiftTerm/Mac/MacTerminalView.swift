@@ -844,8 +844,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             }
         } else {
             turnOffUrlPreview ()
-            // MARK: - AgentHub
-            removeURLHighlight()
         }
         if terminal.keyboardEnhancementFlags.contains(.reportAllKeys),
            !kittyIsComposing,
@@ -2008,7 +2006,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
             return
         }
-        print("[URLDetect] mouseUp cmd=\(event.modifierFlags.contains(.command)) didSelectionDrag=\(didSelectionDrag)")
         if event.modifierFlags.contains(.command) && !didSelectionDrag {
             // MARK: - AgentHub: fallback to plain URL detection in line text
             if let url = detectPlainURL(at: event) {
@@ -2169,11 +2166,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         if commandActive {
             if let payload = getPayload(for: event) as? String {
                 previewUrl (payload: payload)
-                removeURLHighlight()
-            } else {
-                // MARK: - AgentHub: highlight plain URLs on Cmd+hover
-                removePreviewUrl()
-                updateURLHighlight(at: event)
             }
             reportLink(at: hit.grid)
         }
