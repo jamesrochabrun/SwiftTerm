@@ -44,7 +44,10 @@ extension TerminalView {
     let col = hit.col
     let visibleRow = hit.row - terminal.displayBuffer.yDisp
 
-    guard let bufferLine = terminal.getLine(row: visibleRow) else { return nil }
+    guard let bufferLine = terminal.getLine(row: visibleRow) else {
+      print("[FilePath] no line at visibleRow=\(visibleRow)")
+      return nil
+    }
     let lineText = bufferLine.translateToString(trimRight: true)
     guard !lineText.isEmpty else { return nil }
 
@@ -53,6 +56,10 @@ extension TerminalView {
       in: lineText,
       range: NSRange(location: 0, length: nsLine.length)
     )
+    print("[FilePath] row=\(visibleRow) col=\(col) matches=\(matches.count) line='\(lineText.prefix(100))'")
+    for m in matches {
+      print("[FilePath]   match: '\(nsLine.substring(with: m.range))' range=\(m.range.location)..<\(m.range.location + m.range.length)")
+    }
 
     for match in matches {
       let start = match.range.location
