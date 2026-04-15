@@ -44,10 +44,7 @@ extension TerminalView {
     let col = hit.col
     let visibleRow = hit.row - terminal.displayBuffer.yDisp
 
-    guard let bufferLine = terminal.getLine(row: visibleRow) else {
-      print("[FilePath] no line at visibleRow=\(visibleRow)")
-      return nil
-    }
+    guard let bufferLine = terminal.getLine(row: visibleRow) else { return nil }
     let lineText = bufferLine.translateToString(trimRight: true)
     guard !lineText.isEmpty else { return nil }
 
@@ -56,10 +53,6 @@ extension TerminalView {
       in: lineText,
       range: NSRange(location: 0, length: nsLine.length)
     )
-    print("[FilePath] row=\(visibleRow) col=\(col) matches=\(matches.count) line='\(lineText.prefix(100))'")
-    for m in matches {
-      print("[FilePath]   match: '\(nsLine.substring(with: m.range))' range=\(m.range.location)..<\(m.range.location + m.range.length)")
-    }
 
     for match in matches {
       let start = match.range.location
@@ -67,18 +60,14 @@ extension TerminalView {
       if col >= start && col < end {
         let fullMatch = nsLine.substring(with: match.range)
 
-        // Extract line number from capture group 1
         var lineNumber: Int? = nil
         if match.numberOfRanges > 1, match.range(at: 1).location != NSNotFound {
-          let lineStr = nsLine.substring(with: match.range(at: 1))
-          lineNumber = Int(lineStr)
+          lineNumber = Int(nsLine.substring(with: match.range(at: 1)))
         }
 
-        // Extract column from capture group 2
         var column: Int? = nil
         if match.numberOfRanges > 2, match.range(at: 2).location != NSNotFound {
-          let colStr = nsLine.substring(with: match.range(at: 2))
-          column = Int(colStr)
+          column = Int(nsLine.substring(with: match.range(at: 2)))
         }
 
         // Strip the :line:col suffix to get the raw path
@@ -87,7 +76,6 @@ extension TerminalView {
           path = String(path[path.startIndex..<colonRange.lowerBound])
         }
 
-        // Skip very short paths that are likely false positives
         guard path.count >= 3 else { continue }
 
         return DetectedFilePath(path: path, lineNumber: lineNumber, column: column)

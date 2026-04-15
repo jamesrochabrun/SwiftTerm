@@ -23,8 +23,6 @@ extension TerminalView {
   func detectPlainURL(at event: NSEvent) -> URL? {
     let hit = calculateMouseHit(with: event).grid
     let col = hit.col
-    // calculateMouseHit returns buffer-absolute row (includes yDisp)
-    // getLine expects a visible row (0 to rows-1), so subtract yDisp
     let visibleRow = hit.row - terminal.displayBuffer.yDisp
 
     guard let bufferLine = terminal.getLine(row: visibleRow) else { return nil }
@@ -36,19 +34,15 @@ extension TerminalView {
       in: lineText,
       range: NSRange(location: 0, length: nsLine.length)
     )
-    print("[URLDetect] found \(matches.count) URL matches")
 
     for match in matches {
       let start = match.range.location
       let end = start + match.range.length
-      let matchText = nsLine.substring(with: match.range)
-      print("[URLDetect] match: '\(matchText)' range=\(start)..<\(end) col=\(col) hit=\(col >= start && col < end)")
       if col >= start && col < end {
-        var urlString = matchText
+        var urlString = nsLine.substring(with: match.range)
         while let last = urlString.last, ".,;:!?)".contains(last) {
           urlString.removeLast()
         }
-        print("[URLDetect] opening: \(urlString)")
         return URL(string: urlString)
       }
     }
