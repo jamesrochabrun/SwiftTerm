@@ -2002,14 +2002,16 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     public override func mouseUp(with event: NSEvent) {
         let hit = calculateMouseHit(with: event).grid
         updateHoverLink(at: hit, commandOverride: commandActive || event.modifierFlags.contains(.command))
-        if let result = linkForClick(at: hit, hasCommandModifier: event.modifierFlags.contains(.command)) {
-            terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
-            return
-        }
-        // MARK: - AgentHub: file path detection (upstream linkForClick handles URLs)
+        // MARK: - AgentHub: file path detection runs first — upstream's linkForClick
+        // would otherwise match "path/to/file.swift:42" as a generic link and try to
+        // open it as a URL (Finder error -50).
         if event.modifierFlags.contains(.command) && !didSelectionDrag,
            let file = detectFilePath(at: event) {
             terminalDelegate?.requestOpenFile(source: self, path: file.path, lineNumber: file.lineNumber)
+            return
+        }
+        if let result = linkForClick(at: hit, hasCommandModifier: event.modifierFlags.contains(.command)) {
+            terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
             return
         }
         if allowMouseReporting && terminal.mouseMode.sendButtonRelease() {
