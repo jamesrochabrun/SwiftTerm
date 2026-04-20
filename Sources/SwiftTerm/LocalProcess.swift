@@ -9,7 +9,7 @@
 #if !os(iOS) && !os(Windows)
 import Foundation
 import Dispatch
-#if canImport(Subprocess)
+#if false //canImport(Subprocess)
 import Subprocess
 import System
 #endif
@@ -85,8 +85,16 @@ public class LocalProcess {
     var readQueue: DispatchQueue
     
     var io: DispatchIO?
+
+    private let usesMainQueue: Bool
+    private let pendingChunkFlushThreshold = 32
+    private let pendingTimeSliceNs: UInt64 = 4_000_000
+    private var pendingChunks: [[UInt8]] = []
+    private var pendingChunkIndex: Int = 0
+    private var pendingScheduled = false
+    private let pendingLock = NSLock()
     
-    #if canImport(Subprocess)
+    #if false //canImport(Subprocess)
     // Swift Subprocess related properties
     private var subprocessTask: Task<Void, Error>?
     private var masterFd: Int32 = -1
@@ -106,6 +114,56 @@ public class LocalProcess {
         self.delegate = delegate
         self.dispatchQueue = dispatchQueue ?? DispatchQueue.main
         self.readQueue = DispatchQueue(label: "sender")
+        self.usesMainQueue = self.dispatchQueue === DispatchQueue.main
+    }
+
+    private func enqueueReceivedData(_ bytes: [UInt8]) {
+        pendingLock.lock()
+        pendingChunks.append(bytes)
+        let shouldSchedule = !pendingScheduled
+        if shouldSchedule {
+            pendingScheduled = true
+        }
+        pendingLock.unlock()
+        if shouldSchedule {
+            dispatchQueue.async { [weak self] in
+                self?.drainReceivedData()
+            }
+        }
+    }
+
+    private func drainReceivedData() {
+        let start = DispatchTime.now().uptimeNanoseconds
+        while true {
+            var chunk: [UInt8]?
+            pendingLock.lock()
+            if pendingChunkIndex < pendingChunks.count {
+                chunk = pendingChunks[pendingChunkIndex]
+                pendingChunkIndex += 1
+                if pendingChunkIndex >= pendingChunkFlushThreshold {
+                    pendingChunks.removeFirst(pendingChunkIndex)
+                    pendingChunkIndex = 0
+                }
+            } else {
+                pendingChunks.removeAll(keepingCapacity: true)
+                pendingChunkIndex = 0
+                pendingScheduled = false
+                pendingLock.unlock()
+                return
+            }
+            pendingLock.unlock()
+
+            if let chunk {
+                delegate?.dataReceived(slice: chunk[...])
+            }
+
+            if DispatchTime.now().uptimeNanoseconds - start >= pendingTimeSliceNs {
+                dispatchQueue.async { [weak self] in
+                    self?.drainReceivedData()
+                }
+                return
+            }
+        }
     }
     
     /**
@@ -142,7 +200,7 @@ public class LocalProcess {
     /* Used to generate the next file name counter */
     var logFileCounter = 0
     
-    #if canImport(Subprocess)
+    #if false //canImport(Subprocess)
     // Create pseudo-terminal pair using openpty
     private func createPseudoTerminal() throws -> (master: Int32, slave: Int32) {
         var master: Int32 = -1
@@ -164,7 +222,17 @@ public class LocalProcess {
         }
     }
     #endif
-    
+
+    func childStopped(cancelProcessMonitor: Bool = true) {
+        running = false
+#if os(macOS)
+        if cancelProcessMonitor {
+            childMonitor?.cancel()
+            childMonitor = nil
+        }
+#endif
+    }
+
     /* Total number of bytes read */
     var totalRead = 0
     func childProcessRead (done: Bool, data: DispatchData?, errno: Int32) {
@@ -183,7 +251,9 @@ public class LocalProcess {
         if data.count == 0 {
             childfd = -1
             if running {
-                running = false
+                // Keep process monitor alive so the exit event can still deliver
+                // processTerminated to clients when PTY EOF arrives first.
+                childStopped(cancelProcessMonitor: false)
                 // delegate.processTerminated (self, exitCode: nil)
             }
             return
@@ -203,8 +273,12 @@ public class LocalProcess {
                 }
             }
         })
-        dispatchQueue.sync {
-            delegate?.dataReceived(slice: b[...])
+        if usesMainQueue {
+            enqueueReceivedData(b)
+        } else {
+            dispatchQueue.sync {
+                self.delegate?.dataReceived(slice: b[...])
+            }
         }
         io?.read(offset: 0, length: readSize, queue: readQueue, ioHandler: childProcessRead)
     }
@@ -213,14 +287,21 @@ public class LocalProcess {
     var childMonitor: DispatchSourceProcess?
 #endif
 
+    deinit {
+#if os(macOS)
+        childMonitor?.cancel()
+        childMonitor = nil
+#endif
+    }
+
     func processTerminated ()
     {
         var n: Int32 = 0
         waitpid (shellPid, &n, WNOHANG)
         delegate?.processTerminated(self, exitCode: n)
-        running = false
+        childStopped()
     }
-    
+
     /// Indicates if the child process is currently running
     public private(set) var running: Bool = false
     
@@ -237,14 +318,14 @@ public class LocalProcess {
             return
         }
         
-        #if canImport(Subprocess)
+        #if false //canImport(Subprocess)
         startProcessWithSubprocess(executable: executable, args: args, environment: environment, execName: execName, currentDirectory: currentDirectory)
         #else
         startProcessWithForkpty(executable: executable, args: args, environment: environment, execName: execName, currentDirectory: currentDirectory)
         #endif
     }
     
-    #if canImport(Subprocess)
+    #if false //canImport(Subprocess)
     private func startProcessWithSubprocess(executable: String, args: [String], environment: [String]?, execName: String?, currentDirectory: String?) {
         do {
             var size = delegate?.getWindowSize () ?? winsize()
@@ -314,7 +395,7 @@ public class LocalProcess {
                     
                     // Process completed
                     await MainActor.run {
-                        self.running = false
+                        childStopped()
                         let exitCode: Int32?
                         switch result.terminationStatus {
                         case .exited(let code):
@@ -324,10 +405,10 @@ public class LocalProcess {
                         }
                         self.delegate?.processTerminated(self, exitCode: exitCode)
                     }
-                    
+
                 } catch {
                     await MainActor.run {
-                        self.running = false  
+                        childStopped()
                         self.delegate?.processTerminated(self, exitCode: nil)
                     }
                     print("Failed to start process with swift-subprocess: \(error)")
@@ -335,7 +416,7 @@ public class LocalProcess {
             }
             
         } catch {
-            running = false
+            childStopped()
             delegate?.processTerminated(self, exitCode: nil)
             print("Failed to create pseudo-terminal: \(error)")
         }
@@ -392,7 +473,7 @@ public class LocalProcess {
 
     public func terminate()
     {
-        #if canImport(Subprocess)
+        #if false //canImport(Subprocess)
         if let task = subprocessTask {
             task.cancel()
             subprocessTask = nil
@@ -415,7 +496,7 @@ public class LocalProcess {
             kill(shellPid, SIGTERM)
         }
 
-        running = false
+        childStopped()
     }
     
     var loggingDir: String? = nil
