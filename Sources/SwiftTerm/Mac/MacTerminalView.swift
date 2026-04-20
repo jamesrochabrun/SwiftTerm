@@ -141,7 +141,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
 #endif
 
-    var cellDimension: CellDimension!
+    // MARK: - AgentHub (exposed for annotation overlay alignment)
+    public var cellDimension: CellDimension!
     var caretView: CaretView!
     public var terminal: Terminal!
     private var progressBarView: TerminalProgressBarView?
@@ -2000,8 +2001,35 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     
     public override func mouseUp(with event: NSEvent) {
         let hit = calculateMouseHit(with: event).grid
-        updateHoverLink(at: hit, commandOverride: commandActive || event.modifierFlags.contains(.command))
-        if let result = linkForClick(at: hit, hasCommandModifier: event.modifierFlags.contains(.command)) {
+        let cmd = event.modifierFlags.contains(.command)
+        let wasSelectionDrag = didSelectionDrag
+        defer {
+            didSelectionDrag = false
+        }
+        if cmd {
+            print("[AH-OPEN][SwiftTerm] mouseUp cmd=true drag=\(wasSelectionDrag) hit=(row:\(hit.row), col:\(hit.col))")
+        }
+        updateHoverLink(at: hit, commandOverride: commandActive || cmd)
+        // MARK: - AgentHub: file path detection runs first — upstream's linkForClick
+        // would otherwise match "path/to/file.swift:42" as a generic link and try to
+        // open it as a URL (Finder error -50).
+        if cmd {
+            if wasSelectionDrag {
+                print("[AH-OPEN][SwiftTerm] drag=true; still attempting file detection before suppressing generic link activation")
+            }
+            if let file = detectFilePath(at: event) {
+                print("[AH-OPEN][SwiftTerm] route=requestOpenFile path=\"\(file.path)\" line=\(file.lineNumber.map(String.init) ?? "nil")")
+                terminalDelegate?.requestOpenFile(source: self, path: file.path, lineNumber: file.lineNumber)
+                return
+            } else if wasSelectionDrag {
+                print("[AH-OPEN][SwiftTerm] suppress linkForClick because selection drag was active and file detection returned nil")
+                return
+            } else {
+                print("[AH-OPEN][SwiftTerm] file detection nil; checking linkForClick")
+            }
+        }
+        if let result = linkForClick(at: hit, hasCommandModifier: cmd) {
+            print("[AH-OPEN][SwiftTerm] route=requestOpenLink link=\"\(result.link)\" params=\(result.params)")
             terminalDelegate?.requestOpenLink(source: self, link: result.link, params: result.params)
             return
         }
@@ -2014,8 +2042,6 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         // let hit = calculateMouseHit(with: event)
         //print ("Up at col=\(hit.col) row=\(hit.row) count=\(event.clickCount) selection.active=\(selection.active) didSelectionDrag=\(didSelectionDrag) ")
         #endif
-        
-        didSelectionDrag = false
     }
     
     public override func mouseDragged(with event: NSEvent) {
@@ -2422,6 +2448,9 @@ extension TerminalViewDelegate {
         }
     }
     
+    // MARK: - AgentHub
+    public func requestOpenFile (source: TerminalView, path: String, lineNumber: Int?) {}
+
     public func bell (source: TerminalView)
     {
         NSSound.beep()
